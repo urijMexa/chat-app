@@ -10,7 +10,7 @@ import WebSocket, { WebSocketServer } from "ws";
 const app = express();
 const logger = pino(pinoPretty());
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(
     bodyParser.json({
         type(req) {
