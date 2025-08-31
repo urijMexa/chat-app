@@ -10,7 +10,16 @@ import WebSocket, { WebSocketServer } from "ws";
 const app = express();
 const logger = pino(pinoPretty());
 
-app.use(cors({ origin: '*' }));
+// ИЗМЕНЕНИЕ 1: Создаем более детальные настройки CORS
+const corsOptions = {
+    origin: '*',
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions)); // Используем новые настройки
+
 app.use(
     bodyParser.json({
         type(req) {
@@ -24,6 +33,10 @@ app.use((req, res, next) => {
 });
 
 const userState = [];
+
+// ИЗМЕНЕНИЕ 2: Явно обрабатываем OPTIONS запросы для нашего пути
+app.options('/new-user', cors(corsOptions));
+
 app.post("/new-user", async (request, response) => {
     if (Object.keys(request.body).length === 0) {
         const result = {
@@ -31,6 +44,7 @@ app.post("/new-user", async (request, response) => {
             message: "This name is already taken!",
         };
         response.status(400).send(JSON.stringify(result)).end();
+        return;
     }
     const { name } = request.body;
     const isExist = userState.find((user) => user.name === name);
