@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import http from "node:http";
-import express from "express"; // Убираем body-parser, используем встроенный в express
+import express from "express";
 import pino from "pino";
 import pinoPretty from "pino-pretty";
 import WebSocket, { WebSocketServer } from "ws";
@@ -8,13 +8,11 @@ import WebSocket, { WebSocketServer } from "ws";
 const app = express();
 const logger = pino(pinoPretty());
 
-// Middleware для CORS, размещаем его САМЫМ ПЕРВЫМ
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
 
-    // Если это OPTIONS-запрос (preflight), просто отвечаем 200 OK
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
@@ -22,7 +20,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Используем встроенный в Express обработчик JSON
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -101,16 +98,21 @@ wsServer.on("connection", (ws) => {
         .forEach((o) => o.send(dataToSend));
 });
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
+if (!port) {
+    logger.error("PORT environment variable not set!");
+    process.exit(1);
+}
 
-const bootstrap = async () => {
-    try {
-        server.listen(port, () =>
-            logger.info(`Server has been started on http://localhost:${port}`)
-        );
-    } catch (error) {
-        logger.error(`Error: ${error.message}`);
-    }
-};
+server.listen(port, "0.0.0.0", () => {
+    logger.info(`Server has been started on port ${port}`);
+});
 
-bootstrap();
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    process.exit(1);
+});
