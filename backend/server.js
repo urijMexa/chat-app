@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import http from "node:http";
 import bodyParser from "body-parser";
-import cors from "cors";
 import express from "express";
 import pino from "pino";
 import pinoPretty from "pino-pretty";
@@ -10,15 +9,15 @@ import WebSocket, { WebSocketServer } from "ws";
 const app = express();
 const logger = pino(pinoPretty());
 
-// ИЗМЕНЕНИЕ 1: Создаем более детальные настройки CORS
-const corsOptions = {
-    origin: '*',
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-};
-
-app.use(cors(corsOptions)); // Используем новые настройки
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 app.use(
     bodyParser.json({
@@ -33,9 +32,6 @@ app.use((req, res, next) => {
 });
 
 const userState = [];
-
-// ИЗМЕНЕНИЕ 2: Явно обрабатываем OPTIONS запросы для нашего пути
-app.options('/new-user', cors(corsOptions));
 
 app.post("/new-user", async (request, response) => {
     if (Object.keys(request.body).length === 0) {
