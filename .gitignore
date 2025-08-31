@@ -3,6 +3,9 @@
 /backend/node_modules
 /frontend/node_modules
 
+# Lock files
+**/package-lock.json
+
 # Build files
 /frontend/dist
 

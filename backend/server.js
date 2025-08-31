@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import http from "node:http";
-import bodyParser from "body-parser";
-import express from "express";
+import express from "express"; // Убираем body-parser, используем встроенный в express
 import pino from "pino";
 import pinoPretty from "pino-pretty";
 import WebSocket, { WebSocketServer } from "ws";
@@ -9,23 +8,23 @@ import WebSocket, { WebSocketServer } from "ws";
 const app = express();
 const logger = pino(pinoPretty());
 
+// Middleware для CORS, размещаем его САМЫМ ПЕРВЫМ
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+    // Если это OPTIONS-запрос (preflight), просто отвечаем 200 OK
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
+
     next();
 });
 
-app.use(
-    bodyParser.json({
-        type(req) {
-            return true;
-        },
-    })
-);
+// Используем встроенный в Express обработчик JSON
+app.use(express.json());
+
 app.use((req, res, next) => {
     res.setHeader("Content-Type", "application/json");
     next();
@@ -34,10 +33,10 @@ app.use((req, res, next) => {
 const userState = [];
 
 app.post("/new-user", async (request, response) => {
-    if (Object.keys(request.body).length === 0) {
+    if (!request.body || !request.body.name) {
         const result = {
             status: "error",
-            message: "This name is already taken!",
+            message: "Invalid request body!",
         };
         response.status(400).send(JSON.stringify(result)).end();
         return;
@@ -55,7 +54,7 @@ app.post("/new-user", async (request, response) => {
             user: newUser,
         };
         logger.info(`New user created: ${JSON.stringify(newUser)}`);
-        response.send(JSON.stringify(result)).end();
+        response.status(200).send(JSON.stringify(result)).end();
     } else {
         const result = {
             status: "error",
@@ -68,6 +67,7 @@ app.post("/new-user", async (request, response) => {
 
 const server = http.createServer(app);
 const wsServer = new WebSocketServer({ server });
+
 wsServer.on("connection", (ws) => {
     ws.on("message", (msg, isBinary) => {
         const receivedMSG = JSON.parse(msg);
@@ -79,23 +79,26 @@ wsServer.on("connection", (ws) => {
             if (idx !== -1) {
                 userState.splice(idx, 1);
             }
+            const dataToSend = JSON.stringify(userState);
             [...wsServer.clients]
                 .filter((o) => o.readyState === WebSocket.OPEN)
-                .forEach((o) => o.send(JSON.stringify(userState)));
+                .forEach((o) => o.send(dataToSend));
             logger.info(`User with name "${receivedMSG.user.name}" has been deleted`);
             return;
         }
         if (receivedMSG.type === "send") {
+            const dataToSend = JSON.stringify(receivedMSG);
             [...wsServer.clients]
                 .filter((o) => o.readyState === WebSocket.OPEN)
-                .forEach((o) => o.send(msg, { binary: isBinary }));
+                .forEach((o) => o.send(dataToSend, { binary: isBinary }));
             logger.info("Message sent to all users");
         }
     });
 
+    const dataToSend = JSON.stringify(userState);
     [...wsServer.clients]
         .filter((o) => o.readyState === WebSocket.OPEN)
-        .forEach((o) => o.send(JSON.stringify(userState)));
+        .forEach((o) => o.send(dataToSend));
 });
 
 const port = process.env.PORT || 3000;
