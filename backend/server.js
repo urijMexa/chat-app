@@ -20,15 +20,20 @@ app.use((req, res, next) => {
     next();
 });
 
-
 app.use(express.json());
 
 app.use((req, res, next) => {
-    res.setHeader("Content-Type", "application/json");
+    if (req.path !== '/healthz') { // Не устанавливаем JSON для health check
+        res.setHeader("Content-Type", "application/json");
+    }
     next();
 });
 
 const userState = [];
+
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
 
 app.post("/new-user", async (request, response) => {
     if (!request.body || !request.body.name) {
