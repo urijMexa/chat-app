@@ -14,8 +14,8 @@ const messageInput = document.getElementById('message-input');
 let user = null;
 let ws = null;
 
-const API_URL = 'https://chat-app-backend-dc51.onrender.com';
-const WS_URL = 'wss://chat-app-backend-dc51.onrender.com';
+const API_URL = 'https://chat-app-backend-v2-qstn.onrender.com';
+const WS_URL = 'wss://chat-app-backend-v2-qstn.onrender.com';
 
 nicknameForm.addEventListener('submit', async (e) => {
     e.preventDefault();
